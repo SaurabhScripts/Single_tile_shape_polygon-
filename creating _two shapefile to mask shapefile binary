@@ -1,0 +1,38 @@
+import geopandas as gpd
+import os
+
+# Paths to shapefiles
+grid_shapefile = r"C:\Users\nikhil.jadhav1\Documents\ArcGIS\Projects\MyProject17\Sikar_test_data.shp"
+building_footprint_shapefile = r"E:\Saurabh Meena\Habitation\sikar_ms\shapefile234\example_building_footprints.shp"
+
+# Read grid and building footprint shapefiles
+grid_gdf = gpd.read_file(grid_shapefile)
+building_footprint_gdf = gpd.read_file(building_footprint_shapefile)
+
+# Create a directory to store individual shapefiles
+output_dir = "individual_shapefiles2"
+os.makedirs(output_dir, exist_ok=True)
+
+# Iterate through each polygon in the grid shapefile
+for idx, grid_polygon in grid_gdf.iterrows():
+    # Create a temporary GeoDataFrame containing only the current grid polygon
+    temp_grid_gdf = gpd.GeoDataFrame([grid_polygon], geometry='geometry')
+    temp_grid_gdf.crs = grid_gdf.crs
+
+    # Clip building footprints to the extent of the current grid polygon
+    clipped_building_footprints = gpd.overlay(building_footprint_gdf, temp_grid_gdf, how='intersection')
+    
+    # Perform a union operation between the current grid polygon and clipped building footprints
+    union_result = gpd.overlay(temp_grid_gdf, clipped_building_footprints, how='union')
+    
+    # Add a new column 'value' and set it to 1 for building polygons
+    union_result['value'] = 0
+    
+    # Update the 'value' column to 0 for grid polygons
+    union_result.loc[union_result['geometry'].geom_type == 'Polygon', 'value'] = 1
+    
+    # Save the union result as a shapefile with a unique name
+    output_shapefile = os.path.join(output_dir, f"grid_{idx}_union.shp")
+    union_result.to_file(output_shapefile)
+
+# Note: Each individual shapefile will have a 'value' column with 1 for building polygons and 0 for grid polygons.
